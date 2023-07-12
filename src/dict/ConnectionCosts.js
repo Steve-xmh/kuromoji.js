@@ -55,4 +55,4 @@ class ConnectionCosts {
 	}
 }
 
-module.exports = ConnectionCosts;
+export default ConnectionCosts;
