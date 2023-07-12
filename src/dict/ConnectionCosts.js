@@ -24,36 +24,35 @@
  * @param {number} forward_dimension
  * @param {number} backward_dimension
  */
-function ConnectionCosts(forward_dimension, backward_dimension) {
-    this.forward_dimension = forward_dimension;
-    this.backward_dimension = backward_dimension;
+class ConnectionCosts {
+	constructor(forward_dimension, backward_dimension) {
+		this.forward_dimension = forward_dimension;
+		this.backward_dimension = backward_dimension;
 
-    // leading 2 integers for forward_dimension, backward_dimension, respectively
-    this.buffer = new Int16Array(forward_dimension * backward_dimension + 2);
-    this.buffer[0] = forward_dimension;
-    this.buffer[1] = backward_dimension;
+		// leading 2 integers for forward_dimension, backward_dimension, respectively
+		this.buffer = new Int16Array(forward_dimension * backward_dimension + 2);
+		this.buffer[0] = forward_dimension;
+		this.buffer[1] = backward_dimension;
+	}
+	put(forward_id, backward_id, cost) {
+		const index = forward_id * this.backward_dimension + backward_id + 2;
+		if (this.buffer.length < index + 1) {
+			throw "ConnectionCosts buffer overflow";
+		}
+		this.buffer[index] = cost;
+	}
+	get(forward_id, backward_id) {
+		const index = forward_id * this.backward_dimension + backward_id + 2;
+		if (this.buffer.length < index + 1) {
+			throw "ConnectionCosts buffer overflow";
+		}
+		return this.buffer[index];
+	}
+	loadConnectionCosts(connection_costs_buffer) {
+		this.forward_dimension = connection_costs_buffer[0];
+		this.backward_dimension = connection_costs_buffer[1];
+		this.buffer = connection_costs_buffer;
+	}
 }
-
-ConnectionCosts.prototype.put = function (forward_id, backward_id, cost) {
-    var index = forward_id * this.backward_dimension + backward_id + 2;
-    if (this.buffer.length < index + 1) {
-        throw "ConnectionCosts buffer overflow";
-    }
-    this.buffer[index] = cost;
-};
-
-ConnectionCosts.prototype.get = function (forward_id, backward_id) {
-    var index = forward_id * this.backward_dimension + backward_id + 2;
-    if (this.buffer.length < index + 1) {
-        throw "ConnectionCosts buffer overflow";
-    }
-    return this.buffer[index];
-};
-
-ConnectionCosts.prototype.loadConnectionCosts = function (connection_costs_buffer) {
-    this.forward_dimension = connection_costs_buffer[0];
-    this.backward_dimension = connection_costs_buffer[1];
-    this.buffer = connection_costs_buffer;
-};
 
 module.exports = ConnectionCosts;

@@ -17,8 +17,8 @@
 
 "use strict";
 
-var zlib = require("zlibjs/bin/gunzip.min.js");
-var DictionaryLoader = require("./DictionaryLoader");
+import { decompress } from "fflate";
+import DictionaryLoader from "./DictionaryLoader";
 
 /**
  * BrowserDictionaryLoader inherits DictionaryLoader, using jQuery XHR for download
@@ -26,7 +26,7 @@ var DictionaryLoader = require("./DictionaryLoader");
  * @constructor
  */
 function BrowserDictionaryLoader(dic_path) {
-    DictionaryLoader.apply(this, [dic_path]);
+	DictionaryLoader.apply(this, [dic_path]);
 }
 
 BrowserDictionaryLoader.prototype = Object.create(DictionaryLoader.prototype);
@@ -37,24 +37,30 @@ BrowserDictionaryLoader.prototype = Object.create(DictionaryLoader.prototype);
  * @param {BrowserDictionaryLoader~onLoad} callback Callback function
  */
 BrowserDictionaryLoader.prototype.loadArrayBuffer = function (url, callback) {
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", url, true);
-    xhr.responseType = "arraybuffer";
-    xhr.onload = function () {
-        if (this.status > 0 && this.status !== 200) {
-            callback(xhr.statusText, null);
-            return;
-        }
-        var arraybuffer = this.response;
+	const xhr = new XMLHttpRequest();
+	xhr.open("GET", url, true);
+	xhr.responseType = "arraybuffer";
+	xhr.onload = function () {
+		if (this.status > 0 && this.status !== 200) {
+			callback(xhr.statusText, null);
+			return;
+		}
+		const arraybuffer = this.response;
 
-        var gz = new zlib.Zlib.Gunzip(new Uint8Array(arraybuffer));
-        var typed_array = gz.decompress();
-        callback(null, typed_array.buffer);
-    };
-    xhr.onerror = function (err) {
-        callback(err, null);
-    };
-    xhr.send();
+		decompress(
+			new Uint8Array(arraybuffer),
+			{
+				consume: true,
+			},
+			function (err, typed_array) {
+				callback(err, typed_array.buffer);
+			},
+		);
+	};
+	xhr.onerror = function (err) {
+		callback(err, null);
+	};
+	xhr.send();
 };
 
 /**
@@ -64,4 +70,4 @@ BrowserDictionaryLoader.prototype.loadArrayBuffer = function (url, callback) {
  * @param {Uint8Array} buffer Loaded buffer
  */
 
-module.exports = BrowserDictionaryLoader;
+export default BrowserDictionaryLoader;
