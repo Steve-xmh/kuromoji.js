@@ -40,9 +40,10 @@ function TokenizerBuilder(option) {
  */
 TokenizerBuilder.prototype.build = function (callback) {
 	const loader = new DictionaryLoader(this.dic_path);
-	loader.load(function (err, dic) {
-		callback(err, new Tokenizer(dic));
-	});
+	loader
+		.load()
+		.then((dic) => callback(null, new Tokenizer(dic)))
+		.catch((err) => callback(err, null));
 };
 
 /**

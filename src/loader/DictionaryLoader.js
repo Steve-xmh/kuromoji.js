@@ -17,105 +17,56 @@
 
 "use strict";
 
-import { parallel, map } from "async";
 import DynamicDictionaries from "../dict/DynamicDictionaries";
 
 function join(...path) {
 	return path.join("/");
 }
 
-/**
- * DictionaryLoader base constructor
- * @param {string} dic_path Dictionary path
- * @constructor
- */
-function DictionaryLoader(dic_path) {
-	this.dic = new DynamicDictionaries();
-	this.dic_path = dic_path;
-}
+class DictionaryLoader {
+	/**
+	 * @param {string} dic_path
+	 */
+	constructor(dic_path) {
+		/**
+		 * @type {DynamicDictionaries}
+		 */
+		this.dic = new DynamicDictionaries();
+		/**
+		 * @type {string}
+		 */
+		this.dic_path = dic_path;
+	}
 
-DictionaryLoader.prototype.loadArrayBuffer = function (file, callback) {
-	throw new Error("DictionaryLoader#loadArrayBuffer should be overwrite");
-};
+	/**
+	 * @param {string} file
+	 * @return {Promise<ArrayBufferLike>}
+	 */
+	async loadArrayBuffer(_file) {
+		throw new Error("DictionaryLoader#loadArrayBuffer should be overwritten");
+	}
 
-/**
- * Load dictionary files
- * @param {DictionaryLoader~onLoad} load_callback Callback function called after loaded
- */
-DictionaryLoader.prototype.load = function (load_callback) {
-	const dic = this.dic;
-	const dic_path = this.dic_path;
-	const loadArrayBuffer = this.loadArrayBuffer;
+	async load() {
+		const dic = this.dic;
+		const dic_path = this.dic_path;
+		const loadArrayBuffer = this.loadArrayBuffer;
+		const loadData = (/** @type {string} */ filename) =>
+			loadArrayBuffer(join(dic_path, filename));
 
-	parallel(
-		[
-			// Trie
-			function (callback) {
-				map(
-					["base.dat", "check.dat"],
-					function (filename, _callback) {
-						loadArrayBuffer(join(dic_path, filename), function (err, buffer) {
-							if (err) {
-								return _callback(err);
-							}
-							_callback(null, buffer);
-						});
-					},
-					function (err, buffers) {
-						if (err) {
-							return callback(err);
-						}
-						const base_buffer = new Int32Array(buffers[0]);
-						const check_buffer = new Int32Array(buffers[1]);
-
-						dic.loadTrie(base_buffer, check_buffer);
-						callback(null);
-					},
+		await Promise.all([
+			(async () => {
+				const buffer = await loadData("cc.dat");
+				const cc_buffer = new Int16Array(buffer);
+				dic.loadConnectionCosts(cc_buffer);
+			})(),
+			(async () => {
+				const [base_buffer, check_buffer] = await Promise.all(
+					["base.dat", "check.dat"].map(loadData),
 				);
-			},
-			// Token info dictionaries
-			function (callback) {
-				map(
-					["tid.dat", "tid_pos.dat", "tid_map.dat"],
-					function (filename, _callback) {
-						loadArrayBuffer(join(dic_path, filename), function (err, buffer) {
-							if (err) {
-								return _callback(err);
-							}
-							_callback(null, buffer);
-						});
-					},
-					function (err, buffers) {
-						if (err) {
-							return callback(err);
-						}
-						const token_info_buffer = new Uint8Array(buffers[0]);
-						const pos_buffer = new Uint8Array(buffers[1]);
-						const target_map_buffer = new Uint8Array(buffers[2]);
-
-						dic.loadTokenInfoDictionaries(
-							token_info_buffer,
-							pos_buffer,
-							target_map_buffer,
-						);
-						callback(null);
-					},
-				);
-			},
-			// Connection cost matrix
-			function (callback) {
-				loadArrayBuffer(join(dic_path, "cc.dat"), function (err, buffer) {
-					if (err) {
-						return callback(err);
-					}
-					const cc_buffer = new Int16Array(buffer);
-					dic.loadConnectionCosts(cc_buffer);
-					callback(null);
-				});
-			},
-			// Unknown dictionaries
-			function (callback) {
-				map(
+				dic.loadTrie(new Uint8Array(base_buffer), new Uint8Array(check_buffer));
+			})(),
+			(async () => {
+				const buffers = await Promise.all(
 					[
 						"unk.dat",
 						"unk_pos.dat",
@@ -123,51 +74,28 @@ DictionaryLoader.prototype.load = function (load_callback) {
 						"unk_char.dat",
 						"unk_compat.dat",
 						"unk_invoke.dat",
-					],
-					function (filename, _callback) {
-						loadArrayBuffer(join(dic_path, filename), function (err, buffer) {
-							if (err) {
-								return _callback(err);
-							}
-							_callback(null, buffer);
-						});
-					},
-					function (err, buffers) {
-						if (err) {
-							return callback(err);
-						}
-						const unk_buffer = new Uint8Array(buffers[0]);
-						const unk_pos_buffer = new Uint8Array(buffers[1]);
-						const unk_map_buffer = new Uint8Array(buffers[2]);
-						const cat_map_buffer = new Uint8Array(buffers[3]);
-						const compat_cat_map_buffer = new Uint32Array(buffers[4]);
-						const invoke_def_buffer = new Uint8Array(buffers[5]);
-
-						dic.loadUnknownDictionaries(
-							unk_buffer,
-							unk_pos_buffer,
-							unk_map_buffer,
-							cat_map_buffer,
-							compat_cat_map_buffer,
-							invoke_def_buffer,
-						);
-						// dic.loadUnknownDictionaries(char_buffer, unk_buffer);
-						callback(null);
-					},
+					].map(loadData),
 				);
-			},
-		],
-		function (err) {
-			load_callback(err, dic);
-		},
-	);
-};
+				const unk_buffer = new Uint8Array(buffers[0]);
+				const unk_pos_buffer = new Uint8Array(buffers[1]);
+				const unk_map_buffer = new Uint8Array(buffers[2]);
+				const cat_map_buffer = new Uint8Array(buffers[3]);
+				const compat_cat_map_buffer = new Uint32Array(buffers[4]);
+				const invoke_def_buffer = new Uint8Array(buffers[5]);
 
-/**
- * Callback
- * @callback DictionaryLoader~onLoad
- * @param {Object} err Error object
- * @param {DynamicDictionaries} dic Loaded dictionary
- */
+				dic.loadUnknownDictionaries(
+					unk_buffer,
+					unk_pos_buffer,
+					unk_map_buffer,
+					cat_map_buffer,
+					compat_cat_map_buffer,
+					invoke_def_buffer,
+				);
+			})(),
+		]);
+
+		return dic;
+	}
+}
 
 export default DictionaryLoader;

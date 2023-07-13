@@ -24,10 +24,10 @@ import UnknownDictionary from "./UnknownDictionary";
 
 /**
  * Dictionaries container for Tokenizer
- * @param {DoubleArray} trie
- * @param {TokenInfoDictionary} token_info_dictionary
- * @param {ConnectionCosts} connection_costs
- * @param {UnknownDictionary} unknown_dictionary
+ * @param {?DoubleArray} trie
+ * @param {?TokenInfoDictionary} token_info_dictionary
+ * @param {?ConnectionCosts} connection_costs
+ * @param {?UnknownDictionary} unknown_dictionary
  * @constructor
  */
 function DynamicDictionaries(
@@ -36,23 +36,23 @@ function DynamicDictionaries(
 	connection_costs,
 	unknown_dictionary,
 ) {
-	if (trie != null) {
+	if (trie) {
 		this.trie = trie;
 	} else {
 		this.trie = builder(0).build([{ k: "", v: 1 }]);
 	}
-	if (token_info_dictionary != null) {
+	if (token_info_dictionary) {
 		this.token_info_dictionary = token_info_dictionary;
 	} else {
 		this.token_info_dictionary = new TokenInfoDictionary();
 	}
-	if (connection_costs != null) {
+	if (connection_costs) {
 		this.connection_costs = connection_costs;
 	} else {
 		// backward_size * backward_size
 		this.connection_costs = new ConnectionCosts(0, 0);
 	}
-	if (unknown_dictionary != null) {
+	if (unknown_dictionary) {
 		this.unknown_dictionary = unknown_dictionary;
 	} else {
 		this.unknown_dictionary = new UnknownDictionary();

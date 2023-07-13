@@ -19,43 +19,30 @@
 
 import { readFile } from "fs";
 import { gunzip } from "zlib";
-import { apply, prototype } from "./DictionaryLoader";
+import DictionaryLoader from "./DictionaryLoader";
 
-/**
- * NodeDictionaryLoader inherits DictionaryLoader
- * @param {string} dic_path Dictionary path
- * @constructor
- */
-function NodeDictionaryLoader(dic_path) {
-	apply(this, [dic_path]);
-}
-
-NodeDictionaryLoader.prototype = Object.create(prototype);
-
-/**
- * Utility function
- * @param {string} file Dictionary file path
- * @param {NodeDictionaryLoader~onLoad} callback Callback function
- */
-NodeDictionaryLoader.prototype.loadArrayBuffer = function (file, callback) {
-	readFile(file, function (err, buffer) {
-		if (err) {
-			return callback(err);
-		}
-		gunzip(buffer, function (err2, decompressed) {
-			if (err2) {
-				return callback(err2);
-			}
-			const typed_array = new Uint8Array(decompressed);
-			callback(null, typed_array.buffer);
+class NodeDictionaryLoader extends DictionaryLoader {
+	/**
+	 * @override
+	 * @param {string} file
+	 * @return {Promise<ArrayBufferLike>}
+	 */
+	loadArrayBuffer(file) {
+		return new Promise((resolve, reject) => {
+			readFile(file, function (err, buffer) {
+				if (err) {
+					return reject(err);
+				}
+				gunzip(buffer, function (err2, decompressed) {
+					if (err2) {
+						return reject(err2);
+					}
+					const typed_array = new Uint8Array(decompressed);
+					resolve(typed_array.buffer);
+				});
+			});
 		});
-	});
-};
-
-/**
- * @callback NodeDictionaryLoader~onLoad
- * @param {Object} err Error object
- * @param {Uint8Array} buffer Loaded buffer
- */
+	}
+}
 
 export default NodeDictionaryLoader;

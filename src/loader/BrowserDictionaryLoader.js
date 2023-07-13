@@ -21,53 +21,45 @@ import { decompress } from "fflate";
 import DictionaryLoader from "./DictionaryLoader";
 
 /**
- * BrowserDictionaryLoader inherits DictionaryLoader, using jQuery XHR for download
- * @param {string} dic_path Dictionary path
- * @constructor
+ * @param {ArrayBufferLike} buffer
+ * @returns {Promise<ArrayBufferLike>}
  */
-function BrowserDictionaryLoader(dic_path) {
-	DictionaryLoader.apply(this, [dic_path]);
-}
-
-BrowserDictionaryLoader.prototype = Object.create(DictionaryLoader.prototype);
-
-/**
- * Utility function to load gzipped dictionary
- * @param {string} url Dictionary URL
- * @param {BrowserDictionaryLoader~onLoad} callback Callback function
- */
-BrowserDictionaryLoader.prototype.loadArrayBuffer = function (url, callback) {
-	const xhr = new XMLHttpRequest();
-	xhr.open("GET", url, true);
-	xhr.responseType = "arraybuffer";
-	xhr.onload = function () {
-		if (this.status > 0 && this.status !== 200) {
-			callback(xhr.statusText, null);
-			return;
-		}
-		const arraybuffer = this.response;
-
+function decompressAsync(buffer) {
+	return new Promise((resolve, reject) => {
 		decompress(
-			new Uint8Array(arraybuffer),
+			new Uint8Array(buffer),
 			{
 				consume: true,
 			},
 			function (err, typed_array) {
-				callback(err, typed_array.buffer);
+				if (err) {
+					reject(err);
+				} else {
+					resolve(typed_array.buffer);
+				}
 			},
 		);
-	};
-	xhr.onerror = function (err) {
-		callback(err, null);
-	};
-	xhr.send();
-};
+	});
+}
 
 /**
- * Callback
- * @callback BrowserDictionaryLoader~onLoad
- * @param {Object} err Error object
- * @param {Uint8Array} buffer Loaded buffer
+ * BrowserDictionaryLoader inherits DictionaryLoader, using fetch api for download
+ * @param {string} dic_path Dictionary path
+ * @constructor
  */
+class BrowserDictionaryLoader extends DictionaryLoader {
+	/**
+	 * @override
+	 * @param {string} url
+	 * @returns {Promise<ArrayBufferLike>}
+	 */
+	async loadArrayBuffer(url) {
+		const res = await fetch(url);
+		if (!res.ok) throw new Error(res.statusText);
+		const data = await res.arrayBuffer();
+		const decompressed = await decompressAsync(data);
+		return decompressed;
+	}
+}
 
 export default BrowserDictionaryLoader;
